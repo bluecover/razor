@@ -1,0 +1,114 @@
+paths:
+  /user/info/preset:
+    get:
+      summary: 推荐看护人
+      operationId: recommend_carer
+      description: 获取系统推荐的看护人列表
+      produces:
+        - application/json
+      parameters:
+        - in: query
+          name: child_born
+          required: true
+          type: integer
+          description: '孩子是否已出生 1'
+          enum:
+            - 0 未出生
+            - 1 已出生
+        - in: query
+          name: child_birth_ts
+          type: integer
+          description: '孩子出生日期 时间戳 北京时间 1523264525'
+        - in: query
+          name: child_gender
+          required: true
+          type: integer
+          enum:
+            - 1 女
+            - 2 男
+        - in: query
+          required: true
+          name: child_relation
+          description: 用户和孩子的关系 2
+          type: integer
+          enum:
+            - 0 未知
+            - 1 妈妈
+            - 2 爸爸
+            - 3 爷爷
+            - 4 奶奶
+            - 5 外公
+            - 6 外婆
+            - 7 其他家人
+        - in: query
+          name: child_nickname
+          type: string
+          description: 孩子的昵称 卖马的秦琼
+      responses:
+        '200':
+          description: returned status
+          schema:
+            $ref: '#/definitions/User'
+
+definitions:
+  User:
+    type: object
+    required:
+      - id
+      - name
+      - mobile
+      - degree
+      - baby_list
+    properties:
+      id:
+        type: string
+        description: 用户 ID
+        example: 123
+      name:
+        type: string
+        description: 姓名
+        example: 刘大力
+      mobile:
+        type: string
+        example: 18612250030
+      degree:
+        type: integer
+        description: 学历
+        example: 1
+      email:
+        type: string
+        description: 邮箱
+      avatar:
+        type: string
+        description: 头像
+      money:
+          type: number
+          format: 'decimal(8, 2)'
+      baby_list:
+        type: array
+        items:
+          $ref: '#/definitions/Baby'
+      Russell:
+        type: object
+        required:
+          - love
+        properties:
+          love:
+            type: string
+            default: wise
+            example: wise
+          hatred:
+            type: string
+            default: foolish
+            example: foolish
+
+  Baby:
+    type: object
+    properties:
+      nickname:
+        type: string
+        description: '昵称'
+        example: powerfulio
+      age:
+        type: integer
+        example: 1

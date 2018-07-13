@@ -1,0 +1,2101 @@
+swagger: '2.0'
+info:
+  title: API 接口
+  version: 1.0.0
+  description: 'ts -> utc+8 , Beijing Time <br/> salt -> "棘心夭夭，母氏劬劳。母氏圣善，我无令人。"'
+host: 'localhost:18080'
+basePath: /v1
+schemes:
+  - http
+tags:
+  - name: common
+    description: 【通用请求参数展示】
+  - name: app
+    description: 【APP】相关接口
+  - name: auth
+    description: 【登录】相关接口
+  - name: oss
+    description: 【文件上传】相关接口
+  - name: user
+    description: 【用户】相关接口
+  - name: recommend
+    description: 【推荐】相关接口
+  - name: share
+    description: 【共享时间】相关接口
+
+parameters:
+  P_offset:
+    in: query
+    name: offset
+    required: false
+    type: integer
+    minimum: 0
+    description: 翻页起始点
+    default: 0
+  P_limit:
+    in: query
+    name: limit
+    required: false
+    type: integer
+    minimum: 1
+    maximum: 50
+    default: 20
+    description: 数据长度
+  device_id:
+    in: header
+    name: did
+    type: string
+    required: true
+    description: 设备唯一id
+  device_platform:
+    in: header
+    name: dplatform
+    type: string
+    required: true
+    description: android or iphone
+  device_brand:
+    in: header
+    name: dbrand
+    type: string
+    required: true
+    description: 手机品牌 huawei xiaomi ……
+  os_version:
+    in: header
+    name: osv
+    type: string
+    required: true
+    description: 设备安卓或ios系统版本号 7.0 / 11.2.5
+  app_name:
+    in: header
+    name: app
+    type: string
+    required: true
+    description: APP 名字 moremom
+  app_version:
+    in: header
+    name: appv
+    type: string
+    required: true
+    description: APP 版本号
+  resolution:
+    in: header
+    name: resolution
+    type: string
+    required: true
+    description: 设备分辨率
+  channel:
+    in: header
+    name: channel
+    type: string
+    required: true
+    description: app下载渠道
+  ac:
+    in: header
+    name: ac
+    type: string
+    required: true
+    description: wife / 4G/ 3G
+  token:
+    in: header
+    name: token
+    type: string
+    required: true
+    default: ''
+    description: 由服务器返回； 服务器判断用户是否登录的依据。
+  uuid:
+    in: header
+    name: uuid
+    type: string
+    required: true
+    default: ''
+    format: len64
+    description: 由APP端生成；
+      sha256( salt + device_id + timestamp + os )
+      APP安装后，本地产生唯一的 id
+  sid:
+    in: header
+    name: sid
+    type: string
+    required: true
+    format: len64
+    default: ''
+    description: 由APP端生成；
+      sha256( salt + device_id + timestamp )
+      APP每次启动都不一样
+  ts:
+    in: header
+    name: ts
+    type: integer
+    required: true
+    description:
+        timestamp_ts 摘要生成时间
+  sig:
+    in: header
+    name: sig
+    type: string
+    required: true
+    description:
+      sha256( sha256( salt + token + uuid + sid + ...上面的字段...+ ts + query_string + post_body ) )
+      每次请求都带
+
+
+paths:
+  /header/sig:
+    get:
+      tags:
+        - common
+      summary: 每个请求必须包含的参数； Header为Cooikes里面的内容； 其他为query string ? 后面的内容。
+      consumes:
+        - application/json
+      parameters:
+        - $ref: '#/parameters/token'
+        - $ref: '#/parameters/uuid'
+        - $ref: '#/parameters/sid'
+        - $ref: '#/parameters/sig'
+        - $ref: '#/parameters/ts'
+        - $ref: '#/parameters/device_id'
+        - $ref: '#/parameters/device_platform'
+        - $ref: '#/parameters/device_brand'
+        - $ref: '#/parameters/os_version'
+        - $ref: '#/parameters/app_name'
+        - $ref: '#/parameters/app_version'
+        - $ref: '#/parameters/resolution'
+        - $ref: '#/parameters/channel'
+        - $ref: '#/parameters/ac'
+      responses:
+        '200':
+          description: OK
+
+  /device/regist:
+    post:
+      tags:
+        - app
+      summary: 请求队列 位置 1; 保存用户手机信息； 值保存一次。
+      consumes:
+        - application/json
+      parameters:
+        - in: body
+          name: content
+          required: true
+          schema:
+            $ref: '#/definitions/DataDeviceInfo'
+      responses:
+        '200':
+          description: OK
+          schema:
+            type: object
+            required:
+              - status
+            properties:
+              status:
+                $ref: '#/definitions/Status'
+
+  /app/ad:
+    get:
+      tags:
+        - app
+      summary: 请求队列 位置 2; 从服务器获取app启动画面；
+      consumes:
+        - application/json
+      parameters:
+        - in: query
+          name: update_ts
+          type: integer
+          required: true
+          description: 最近一次获取 app init 配置的 时间戳； 服务器根据这个值判断是否下发新配置。
+      responses:
+        '200':
+          description: OK
+          schema:
+            type: object
+            required:
+              - status
+            properties:
+              status:
+                $ref: '#/definitions/Status'
+              data:
+                $ref: '#/definitions/AppInitAdData'
+
+  /app/config:
+    get:
+      tags:
+        - app
+      summary: 请求队列 位置 3; 从服务器获取app配置信息；
+      consumes:
+        - application/json
+      parameters:
+        - in: query
+          name: update_ts
+          type: integer
+          required: true
+          description: 最近一次获取 app init 配置的 摘要值； 服务器根据这个值判断是否下发新配置。
+      responses:
+        '200':
+          description: OK
+          schema:
+            type: object
+            required:
+              - status
+            properties:
+              status:
+                $ref: '#/definitions/Status'
+              data:
+                $ref: '#/definitions/AppInitConfigData'
+
+  '/log/{type}':
+    parameters:
+      - in: path
+        name: type
+        type: string
+        required: true
+        description: 日志类型
+        enum:
+          - action
+    post:
+      tags:
+        - app
+      consumes:
+        - text/plain
+      parameters:
+        - in: body
+          name: data
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          schema:
+            $ref: '#/definitions/Status'
+
+  /auth/mobile/login:
+    post:
+      tags:
+        - auth
+      parameters:
+        - in: body
+          name: data
+          required: true
+          schema:
+            $ref: '#/definitions/AuthMobileLoginRequest'
+      responses:
+        '200':
+          description: OK
+          schema:
+            type: object
+            required:
+              - status
+              - data
+            properties:
+              status:
+                $ref: '#/definitions/Status'
+              data:
+                $ref: '#/definitions/AuthMobileLoginResponseData'
+
+  /auth/mobile/code:
+    get:
+      tags:
+        - auth
+      parameters:
+        - in: query
+          name: mobile
+          type: string
+          required: true
+          description: 明文手机号
+      responses:
+        '200':
+          description: OK
+          schema:
+            type: object
+            required:
+              - status
+              - data
+            properties:
+              status:
+                $ref: '#/definitions/Status'
+              data:
+                $ref: '#/definitions/AuthMobileCodeResponseData'
+
+  /auth/logout:
+    get:
+      tags:
+        - auth
+      responses:
+        '200':
+          description: OK
+          schema:
+            $ref: '#/definitions/Status'
+
+  /user/info/me:
+    get:
+      tags:
+        - user
+      summary: 获取用户的基本个人信息
+      operationId: get_user_info_me
+      produces:
+        - application/json
+      responses:
+        '200':
+          description: returned user info
+          schema:
+            type: object
+            required:
+              - status
+              - data
+            properties:
+              status:
+                $ref: '#/definitions/Status'
+              data:
+                $ref: '#/definitions/UserInfo'
+    post:
+      tags:
+        - user
+      summary: 更新用户的基本个人信息
+      description: 更新用户数据 选择性填写需要更新的字段
+      operationId: update_user_info_me
+      produces:
+        - application/json
+      parameters:
+        - name: user
+          in: body
+          description: 需要更新的用户信息
+          required: true
+          schema:
+            $ref: '#/definitions/UserInfoUpdateRequest'
+      responses:
+        '200':
+          description: result status
+          schema:
+            type: object
+            required:
+              - status
+              - data
+            properties:
+              status:
+                $ref: '#/definitions/Status'
+              data:
+                $ref: '#/definitions/UserInfoUpdateResponseData'
+
+  /user/child/me:
+    get:
+      tags:
+        - user
+      summary: 获取用户本人的孩子信息
+      description: Returns list of child information of one user.
+      operationId: get_child_list_by_user_id
+      produces:
+        - application/json
+      responses:
+        '200':
+          description: result status
+          schema:
+            type: object
+            required:
+              - status
+              - data
+            properties:
+              status:
+                $ref: '#/definitions/Status'
+              data:
+                type: array
+                items:
+                  $ref: '#/definitions/Child'
+    post:
+      tags:
+        - user
+      summary: 更新/新建 孩子信息
+      description: 带 id 则更新现有信息， 不带 id 则新建孩子信息
+      operationId: update_user_child
+      produces:
+        - application/json
+      parameters:
+        - name: child
+          in: body
+          description: 需要更新的孩子信息
+          required: true
+          schema:
+            $ref: '#/definitions/UserChildUpdateData'
+      responses:
+        '200':
+          description: result status
+          schema:
+            type: object
+            required:
+              - status
+              - data
+            properties:
+              status:
+                $ref: '#/definitions/Status'
+              data:
+                $ref: '#/definitions/ChildUpdateResponseData'
+
+  /user/child/delete:
+    post:
+      tags:
+        - user
+      summary: 删除用户孩子信息
+      operationId: delete_child
+      produces:
+        - application/json
+      parameters:
+        - name: data
+          in: body
+          description: 需要删除的孩子信息
+          required: true
+          schema:
+            $ref: '#/definitions/UserChildDeleteRequest'
+      responses:
+        '200':
+          description: result status
+          schema:
+            type: object
+            required:
+              - status
+            properties:
+              status:
+                $ref: '#/definitions/Status'
+
+  /oss/upload/token:
+    get:
+      tags:
+        - oss
+      summary: 获取 OSS 文件上传 token
+      operationId: oss_get_upload_token
+      description: '上传图片、视频等文件前，获取第三方 OSS 云服务上传 token 和存储目录，目前只用七牛云'
+      produces:
+        - application/json
+      parameters:
+        - name: cloud
+          in: query
+          type: string
+          description: '云服务商 目前只用qiniu qiniu'
+        - name: category
+          in: query
+          type: string
+          description: '上传文件类别 avatar: 头像 video: 视频 identity: 识别 birth: 出生证'
+          enum:
+            - avatar
+            - video
+            - identity
+        - name: user
+          in: query
+          type: string
+          description: 用户 ID hello123
+      responses:
+        '200':
+          description: returned status
+          schema:
+            type: object
+            required:
+              - status
+              - data
+            properties:
+              status:
+                $ref: '#/definitions/Status'
+              data:
+                $ref: '#/definitions/UploadTokenResponseData'
+
+  /oss/download/url:
+    get:
+      tags:
+        - oss
+      summary: 获取 OSS 文件加密 URL
+      operationId: oss_get_download_url
+      description: 获取 OSS 非公开存储目录中文件的加密 URL
+      produces:
+        - application/json
+      parameters:
+        - name: cloud
+          in: query
+          type: string
+          description: '云服务商 目前只用qiniu'
+        - name: domain
+          in: query
+          type: string
+          description: '公开的 base URL'
+        - name: key
+          in: query
+          type: string
+          description: '文件在 OSS 上的 bucket/key 存储路径'
+      responses:
+        '200':
+          description: returned status
+          schema:
+            type: object
+            required:
+              - status
+              - data
+            properties:
+              status:
+                $ref: '#/definitions/Status'
+              data:
+                $ref: '#/definitions/OSSDownloadURLResponseData'
+
+  /user/upload/done:
+    post:
+      tags:
+        - user
+      summary: 用户文件上传完成通知
+      operationId: oss_upload_token_done
+      description: '图片、视频等文件上传七牛成功后 通知摩尔妈妈服务器'
+      produces:
+        - application/json
+      parameters:
+        - name: data
+          in: body
+          required: true
+          schema:
+            $ref: '#/definitions/UserUploadDoneRequest'
+      responses:
+        '200':
+          description: returned status
+          schema:
+            type: object
+            required:
+              - status
+              - data
+            properties:
+              status:
+                $ref: '#/definitions/Status'
+              data:
+                $ref: '#/definitions/UserUploadDoneResponseData'
+
+  /user/carer/info:
+    get:
+      tags:
+        - user
+      summary: 获取看护人信息
+      operationId: get_user_carer_info
+      description: 获取看护人的经验、学历、视频、评价等相关信息
+      parameters:
+        - name: user_id
+          in: query
+          required: true
+          type: string
+          description: '看护人的用户ID 123'
+        - name: lng
+          in: query
+          type: number
+          format: 'decimal(10, 6)'
+          description: 经度 116.483765
+        - name: lat
+          in: query
+          type: number
+          format: 'decimal(10, 6)'
+          description: 纬度 39.961914
+      responses:
+        '200':
+          description: returned status
+          schema:
+            type: object
+            required:
+              - status
+              - data
+            properties:
+              status:
+                $ref: '#/definitions/Status'
+              data:
+                $ref: '#/definitions/CarerInfoGetResponseData'
+
+  /user/carer/apply:
+    post:
+      tags:
+        - user
+      summary: 申请成为看护人
+      description: 用户申请成为看护人时提交资料
+      operationId: user_carar_apply
+      produces:
+        - application/json
+      parameters:
+        - name: carer_apply_data
+          in: body
+          description: 申请成为看护人时提交的资料
+          required: true
+          schema:
+            $ref: '#/definitions/CarerApplyRequestData'
+      responses:
+        '200':
+          description: returned status
+          schema:
+            type: object
+            required:
+              - status
+              - data
+            properties:
+              status:
+                $ref: '#/definitions/Status'
+              data:
+                $ref: '#/definitions/CarerApplyResponseData'
+
+  /user/identify/liveness:
+    post:
+      tags:
+        - user
+      summary: 活体检测
+      description: 使用商汤接口对用户实名身份信息进行活体检测检测
+      operationId: user_identify_liveness
+      produces:
+        - application/json
+      parameters:
+        - name: identity
+          in: body
+          description: 认证信息
+          required: true
+          schema:
+            $ref: '#/definitions/UserIdentifyLivenessRequest'
+      responses:
+        '200':
+          description: result status
+          schema:
+            type: object
+            required:
+              - status
+              - data
+            properties:
+              status:
+                $ref: '#/definitions/Status'
+              data:
+                $ref: '#/definitions/UserIdentifyLivenessResponseData'
+
+  /recommend/carer:
+    get:
+      tags:
+        - recommend
+      summary: 推荐看护人
+      operationId: recommend_carer
+      description: 获取系统推荐的看护人列表
+      produces:
+        - application/json
+      parameters:
+        - in: query
+          name: child_born
+          type: integer
+          description: '孩子是否已出生 1'
+          enum:
+            - 0 未出生
+            - 1 已出生
+        - in: query
+          name: child_birth_ts
+          type: integer
+          description: '孩子出生日期 时间戳 北京时间 1523264525'
+        - in: query
+          name: child_gender
+          type: integer
+          enum:
+            - 1 女
+            - 2 男
+        - in: query
+          name: child_relation
+          description: 用户和孩子的关系 2
+          type: integer
+          enum:
+            - 0 未知
+            - 1 妈妈
+            - 2 爸爸
+            - 3 爷爷
+            - 4 奶奶
+            - 5 外公
+            - 6 外婆
+            - 7 其他家人
+        - in: query
+          name: child_nickname
+          type: string
+          description: 孩子的昵称 卖马的秦琼
+      responses:
+        '200':
+          description: returned status
+          schema:
+            type: object
+            required:
+              - status
+              - data
+            properties:
+              status:
+                $ref: '#/definitions/Status'
+              data:
+                type: array
+                items:
+                  $ref: '#/definitions/RecommendCarerResponseDataItem'
+
+  /share/tags:
+    get:
+      tags:
+        - share
+      summary:  活动内容标签
+      operationId: get_share_activity_tags
+      description: 发布共享时间页面 获取活动内容标签
+      produces:
+        - application/json
+      parameters: []
+      responses:
+        '200':
+          description: returned status
+          schema:
+            type: object
+            required:
+              - status
+              - data
+            properties:
+              status:
+                $ref: '#/definitions/Status'
+              data:
+                type: array
+                items:
+                  $ref: '#/definitions/ShareActivityTagsResponseItem'
+
+  /share/publish:
+    post:
+      tags:
+        - share
+      summary:  发布共享时间
+      operationId: publish_share_activity
+      description: 天呐! 终于要发布共享时间了
+      consumes:
+        - application/json
+      parameters:
+        - in: body
+          name: content
+          required: true
+          schema:
+            $ref: '#/definitions/ShareActivityPublishRequest'
+      responses:
+        '200':
+          description: OK
+          schema:
+            type: object
+            required:
+              - status
+              - data
+            properties:
+              status:
+                $ref: '#/definitions/Status'
+              data:
+                $ref: '#/definitions/ShareActivityPublishResponseData'
+
+  /favor/modify:
+    post:
+      tags:
+        - favor
+      summary: 点赞，关注接口
+      operationId: modify_favor_relation
+      description: 创建点赞，关注
+      consumes:
+        - application/json
+      parameters:
+        - in: body
+          name: content
+          required: true
+          schema:
+            $ref: '#/definitions/UserFavor'
+      responses:
+        '200':
+          description: OK
+          schema:
+            $ref: '#/definitions/FavorModifyResponse'
+
+
+definitions:
+  DataDeviceInfo:
+    type: object
+    properties:
+      uuid:
+        type: string
+        format: len64
+        description: 第一次安装启动时，有APP产生，见通用参数
+      device_id:
+        type: string
+        description: 安卓 imei 值 / ios idfa 值
+        example: '626363D0-90D4-06BF-C281-384E4E69D3E2'
+      device_manufacturer:
+        type: string
+        description: 手机生成厂商
+        example: apple
+      device_platform:
+        type: string
+        description: android or iphone
+        example: android
+      device_brand:
+        type: string
+        description: 手机品牌 huawei xiaomi ……
+        example: Apple
+      device_type:
+        type: string
+        description: 型号 FRD-AL00
+        example: FRD-AL00
+      app_version:
+        type: string
+        description: app版本号
+        example: moremom1.1.2
+      os_version:
+        type: string
+        description: 设备安卓或ios系统版本号 7.0 / 11.2.5
+        example: 7.0
+      os_lang:
+        type: string
+        description: 手机语言系统
+        example: cn
+      channel:
+        type: string
+        description: APP下载渠道
+        example: xiaomi /  huawei / appstore 等
+      resolution:
+        type: string
+        description: 设备分辨率
+        example: 1024x768
+  Status:
+    type: object
+    required:
+      - code
+      - msg
+    properties:
+      code:
+        description: 错误码，成功为 0
+        type: integer
+        example: 0
+      msg:
+        description: 错误信息
+        type: string
+        example: ''
+
+  AppInitConfigData:
+    type: object
+    properties:
+      update_ts:
+        type: integer
+        description: 更新时间戳
+      content:
+        type: string
+        description: 配置的Json字符串
+      app_version:
+        type: integer
+        description: 三位数版本号 / 103
+
+  AppInitAdData:
+    type: object
+    properties:
+      update_ts:
+        type: integer
+        description: 更新时间戳
+      adsrc:
+        type: string
+        description: 广告资源位置
+      adurl:
+        type: string
+        description: 广告资源跳转
+      interval:
+        type: integer
+        description: 广告展示时间
+
+  AuthMobileLoginResponseData:
+    type: object
+    properties:
+      user_id:
+        type: string
+        format: uuid
+        example: uuid_user_1
+      token:
+        type: string
+        description: Token From Server
+        example: token_123ABC
+
+  AuthMobileCodeResponseData:
+    type: object
+    required:
+      - status
+    properties:
+      status:
+        $ref: '#/definitions/Status'
+      data:
+        type: object
+        properties:
+          code:
+            type: integer
+            description: 登陆验证码
+            example: 9527
+          mobile:
+            type: string
+            description: 待登陆手机号
+            example: '13611112222'
+          retry_time:
+            type: string
+            description: retry within xx seconds
+            example: 2
+  DataMessage:
+    type: object
+    required:
+      - id
+      - from_user_id
+      - to_user_id
+      - content
+    properties:
+      id:
+        type: string
+        format: enc_message_id
+      from_user_id:
+        type: string
+        format: enc_user_id
+      status:
+        type: string
+      subject:
+        type: string
+      content:
+        type: string
+      create_ts:
+        type: integer
+      to_user_id:
+        type: string
+        format: enc_user_id
+  MessageResponse:
+    required:
+      - status
+    properties:
+      status:
+        $ref: '#/definitions/Status'
+      data:
+        $ref: '#/definitions/DataMessage'
+  MessageListResponse:
+    type: object
+    required:
+      - status
+    properties:
+      status:
+        $ref: '#/definitions/Status'
+      data:
+        type: array
+        items:
+          $ref: '#/definitions/DataMessage'
+  DataUserPoint:
+    type: object
+    required:
+      - user_id
+      - point
+      - total_grant
+      - total_deposit
+      - total_withdraw
+    properties:
+      user_id:
+        type: string
+        format: enc_user_id
+      point:
+        type: integer
+      total_grant:
+        type: integer
+      total_deposit:
+        type: integer
+      total_withdraw:
+        type: integer
+  UserPointResponse:
+    type: object
+    required:
+      - status
+    properties:
+      status:
+        $ref: '#/definitions/Status'
+      data:
+        $ref: '#/definitions/DataUserPoint'
+  DataPointDeposit:
+    type: object
+    required:
+      - user_id
+      - amount
+      - point
+    properties:
+      user_id:
+        type: string
+        format: enc_user_id
+      point:
+        type: number
+        format: 'decimal(8,2)'
+      status:
+        type: string
+      trade_no:
+        type: string
+      transaction_id:
+        type: string
+      payment_type:
+        type: string
+      paied_ts:
+        type: integer
+  PointDepositListResponse:
+    type: object
+    required:
+      - status
+    properties:
+      status:
+        $ref: '#/definitions/Status'
+      data:
+        type: array
+        items:
+          $ref: '#/definitions/DataPointDeposit'
+  DataPointGrant:
+    type: object
+    required:
+      - user_id
+      - point
+    properties:
+      user_id:
+        type: string
+        format: enc_user_id
+      point:
+        type: number
+        format: 'decimal(8,2)'
+      status:
+        type: string
+      type:
+        type: string
+      create_ts:
+        type: integer
+  PointGrantListResponse:
+    type: object
+    required:
+      - status
+    properties:
+      status:
+        $ref: '#/definitions/Status'
+      data:
+        type: array
+        items:
+          $ref: '#/definitions/DataPointGrant'
+  DataPointTX:
+    required:
+      - from_user_id
+      - to_user_id
+      - point
+    properties:
+      from_user_id:
+        type: string
+        format: enc_user_id
+      to_user_id:
+        type: string
+        format: enc_user_id
+      point:
+        type: number
+        format: 'decimal(8,2)'
+      status:
+        type: string
+      type:
+        type: string
+      create_ts:
+        type: integer
+  PointTXListResponse:
+    required:
+      - status
+    properties:
+      status:
+        $ref: '#/definitions/Status'
+      data:
+        type: array
+        items:
+          $ref: '#/definitions/DataPointTX'
+  DataPointWithdraw:
+    type: object
+    required:
+      - user_id
+      - amount
+      - point
+    properties:
+      user_id:
+        type: string
+        format: enc_user_id
+      point:
+        type: number
+        format: 'decimal(8,2)'
+      status:
+        type: string
+      payment_trade_no:
+        type: string
+      payment_type:
+        type: string
+      paied_ts:
+        type: integer
+      account_no:
+        type: string
+      account_name:
+        type: string
+      account_bank:
+        type: string
+      create_ts:
+        type: integer
+  PointWithdrawListResponse:
+    type: object
+    required:
+      - status
+    properties:
+      status:
+        $ref: '#/definitions/Status'
+      data:
+        type: array
+        items:
+          $ref: '#/definitions/DataPointWithdraw'
+
+  UserInfo:
+    type: object
+    properties:
+      nickname:
+        type: string
+        description: 昵称
+        example: 刘小力的妈妈
+      realname:
+        type: string
+        description: 真实姓名
+        example: 刘大力
+      mobile:
+        description: '手机号'
+        type: string
+        format: mobile
+        example: '13618810002'
+      id_card_no:
+        description: '身份证号'
+        type: string
+        format: id_card
+        example: '220***********2318'
+      child_relation:
+        description: 和孩子的关系
+        type: string
+        enum:
+          - 未知
+          - 妈妈
+          - 爸爸
+          - 其他家人
+        example: 妈妈
+      degree:
+        description: 最高学历
+        type: string
+        example: 博士
+      avatar_url:
+        type: string
+        format: url
+        description: 个人头像图片 URL
+        example: 'qiniu.com/image/2018/03/11/avatar.jpg'
+
+  UserIdentifyLivenessRequest:
+    type: object
+    required:
+      - realname
+      - idcard_no
+      - liveness_id
+    properties:
+      realname:
+        type: string
+        description: 真实姓名
+        example: 刘大力
+      idcard_no:
+        type: string
+        description: 身份证号
+        format: id_no
+        example: '220326199308125277'
+      liveness_id:
+        type: string
+        description: 活体检测 ID
+        example: 86be940bea6c4b35a2e0e9829b20d51d
+      idcard_image:
+        $ref: '#/definitions/ObjectInfo'
+      live_image:
+        $ref: '#/definitions/ObjectInfo'
+      info:
+        type: string
+        description: 其他有用信息 格式化成 json 串
+
+  UserIdentifyLivenessResponseData:
+    type: object
+    properties:
+      result:
+        type: integer
+        description: 检测是否通过
+        example: 1
+        enum:
+          - 1 通过
+          - 0 不通过
+
+  UserChildUpdateData:
+    type: object
+    properties:
+      id:
+        type: integer
+        description: '孩子 id'
+        example: 112
+      uuid:
+        type: string
+        format: uuid
+        example: uuid_child_1
+      nickname:
+        type: string
+        description: '昵称'
+        example: powerfulio
+      realname:
+        type: string
+        description: '真实姓名'
+        example: 刘小力
+      id_card_no:
+        type: string
+        format: id_card
+        description: '身份证号'
+        example: '220***********2318'
+
+  UserChildDeleteRequest:
+    type: object
+    required:
+      - id
+    properties:
+      id:
+        type: string
+        description: 孩子 id
+        example: 123
+
+  Child:
+    type: object
+    properties:
+      id:
+        type: integer
+        format: uuid
+        example: uuid_child_1
+      nickname:
+        type: string
+        description: '昵称'
+        example: powerfulio
+      realname:
+        type: string
+        description: '真实姓名'
+        example: 刘小力
+      gender:
+        type: string
+        enum:
+          - 女
+          - 男
+        example: 女
+      age:
+        type: integer
+        example: 1
+      id_card_no:
+        type: string
+        description: '身份证号'
+        example: '220324199608192318'
+
+  Address:
+    type: object
+    required:
+      - city
+    properties:
+      lng:
+        type: number
+        format: 'decimal(10, 6)'
+        example: 116.483765
+      lat:
+        type: number
+        format: 'decimal(10, 6)'
+        example: 39.961914
+      province:
+        type: string
+        description: '省份/直辖市'
+        example: 北京市
+      city:
+        type: string
+        description: '城市'
+        example: 北京市
+      district:
+        type: string
+        description: '区'
+        example: 海淀区
+      address:
+        type: string
+        description: '详细地址'
+        example: 张自忠路3号段
+      name:
+        type: string
+        description: '机构名'
+        example: 段祺瑞执政府旧址
+      room:
+        type: string
+        description: '用户填写的门牌号'
+        example: 6号楼3单元202室
+
+  ServiceItem:
+    type: object
+    required:
+      - user_id
+      - provider_name
+      - start_ts
+      - end_ts
+      - child_limit
+      - price
+      - description
+    properties:
+      user_id:
+        type: string
+        format: uuid
+        example: uuid_user_123
+        description: 服务提供者 id
+      provider_name:
+        type: string
+        example: 小番茄的妈妈
+        description: 服务提供者的显示名
+      start_ts:
+        type: integer
+        example: 1521550268000
+        description: 开始时间
+      end_ts:
+        type: integer
+        example: 1521553868000
+        description: 结束时间
+      child_count:
+        type: integer
+        example: 8
+        default: 0
+        description: 已报名孩子人数
+      child_limit:
+        type: integer
+        example: 20
+        description: 可报名孩子总数
+      price:
+        type: integer
+        example: 160
+        description: 价格 摩尔币
+      description:
+        type: string
+        example: 这次要在开放的室内和宝宝们分享故事绘本
+        description: 服务简介
+      address:
+        $ref: '#/definitions/Address'
+
+  ServiceOrder:
+    type: object
+    required:
+      - user_id
+      - item
+    properties:
+      id:
+        type: string
+        format: uuid
+        example: uuid_order_1
+      user_id:
+        type: string
+        format: uuid
+        example: uuid_user_1
+      status:
+        description: 订单状态
+        type: string
+        enum:
+          - 待支付
+          - 待生效
+          - 已完成
+          - 已取消
+      create_ts:
+        type: integer
+        example: 1521550268
+      children:
+        type: array
+        items:
+          $ref: '#/definitions/Child'
+      insurer_name:
+        type: string
+        example: 刘大力
+      insurer_id:
+        type: string
+        format: idno
+        example: '220326199308125277'
+      insured_name:
+        type: string
+        example: 刘小力
+      insured_id:
+        type: string
+        format: idno
+        example: '220324201503025266'
+      insurance_id:
+        type: string
+        format: uuid
+        example: uuid_insurance_123
+      insurance_summary:
+        type: string
+        example: 平台联合太平洋保险 为此单投保10万元
+      remark:
+        type: string
+        example: '宝宝很聪明, 请多关照!'
+      item:
+        $ref: '#/definitions/ServiceItem'
+
+  StatusResponse:
+    type: object
+    required:
+      - status
+    properties:
+      status:
+        $ref: '#/definitions/Status'
+
+  UserInfoUpdateRequest:
+    type: object
+    properties:
+      realname:
+        type: string
+        description: 真实姓名
+        example: 刘大力
+      mobile:
+        description: '手机号'
+        type: string
+        format: mobile
+        example: '13618810002'
+      id_card_no:
+        description: '身份证号'
+        type: string
+        format: id_card
+        example: '220324199608192318'
+      child_relation:
+        description: 和孩子的关系
+        type: integer
+        enum:
+          - 0 未知
+          - 1 妈妈
+          - 2 爸爸
+          - 3 爷爷
+          - 4 奶奶
+          - 5 外公
+          - 6 外婆
+          - 7 其他家人
+        example: 1
+      degree:
+        description: 最高学历
+        type: integer
+        enum:
+          - 0 无
+          - 1 专科
+          - 2 本科
+          - 3 硕士
+          - 4 博士
+        example: 1
+      avatar:
+        $ref: '#/definitions/ObjectInfo'
+
+  UserInfoUpdateResponseData:
+    type: object
+    required:
+      - id
+    properties:
+      id:
+        type: string
+        format: uuid
+        example: uuid_user_1
+
+  ChildUpdateResponseData:
+    type: object
+    properties:
+      id:
+        type: string
+        format: uuid
+        example: uuid_child_1
+
+  OrderListResponse:
+    type: object
+    required:
+      - status
+      - data
+    properties:
+      status:
+        $ref: '#/definitions/Status'
+      data:
+        type: array
+        items:
+          $ref: '#/definitions/ServiceOrder'
+
+  OrderGetResponse:
+    type: object
+    required:
+      - status
+      - data
+    properties:
+      status:
+        $ref: '#/definitions/Status'
+      data:
+        $ref: '#/definitions/ServiceOrder'
+
+  OrderSubmitRequest:
+    type: object
+    required:
+      - user_id
+      - item_ids
+      - children
+      - insurer_name
+      - insured_name
+    properties:
+      user_id:
+        type: string
+        format: uuid
+        example: uuid_user_1
+      item_ids:
+        type: array
+        items:
+          type: string
+          format: uuid
+          example:
+            - uuid_item_1
+      children:
+        type: array
+        items:
+          type: object
+          required:
+            - name
+            - gender
+          properties:
+            name:
+              type: string
+              example: 刘小力
+            gender:
+              type: string
+              enum:
+                - 女
+                - 男
+              example: 女
+      insurer_name:
+        type: string
+        example: 刘大力
+      insured_name:
+        type: string
+        example: 刘小力
+      remark:
+        type: string
+        example: '宝宝很聪明, 请多关照!'
+
+  OrderSubmitResponse:
+    type: object
+    required:
+      - status
+      - data
+    properties:
+      status:
+        $ref: '#/definitions/Status'
+      data:
+        type: object
+        properties:
+          order_ids:
+            type: array
+            items:
+              type: string
+              format: uuid
+              description: 生成的订单 id
+              example:
+                - uuid_order_1
+                - uuid_order_2
+          reserved_time:
+            type: integer
+            description: 未支付状态下 订单保留时间(秒)
+            example: 2700
+          balance:
+            type: integer
+            description: 账户余额(摩尔豆)
+            example: 50
+          diff:
+            type: integer
+            description: '若账户余额不够支付本订单 该值为差额: 订单价格 - 账户余额 (摩尔豆)'
+            example: 150
+
+  OrderCancelResponse:
+    type: object
+    required:
+      - status
+      - data
+    properties:
+      status:
+        $ref: '#/definitions/Status'
+      data:
+        type: object
+        properties:
+          order_id:
+            type: string
+            format: uuid
+            description: 取消订单 id
+            example: uuid_order_1
+
+  OrderPayResponse:
+    type: object
+    required:
+      - status
+      - data
+    properties:
+      status:
+        $ref: '#/definitions/Status'
+      data:
+        type: object
+        properties:
+          order_ids:
+            type: array
+            items:
+              type: string
+              format: uuid
+              description: 支付的订单 id
+              example:
+                - uuid_order_1
+                - uuid_order_1
+          paid:
+            type: integer
+            description: 支付金额(摩尔豆)
+            example: 220
+          balance:
+            type: integer
+            description: 账户余额(摩尔豆)
+            example: 1800
+
+  CarerInfoGetResponseData:
+    type: object
+    properties:
+      nickname:
+        type: string
+        description: 昵称
+        example: 小番茄的妈妈
+      identified:
+        type: boolean
+        description: 是否实名认证
+        example: true
+      degree:
+        description: 学历
+        type: string
+        example: 硕士
+      care_exp:
+        type: integer
+        description: 带娃经验(年)
+        example: 5
+      child_age_min:
+        type: integer
+        example: 0
+        description: 接待孩子最小年龄
+      child_age_max:
+        type: integer
+        example: 6
+        description: 接待孩子最大年龄
+      avatar_url:
+        type: string
+        format: url
+        description: 头像图片 URL
+        example: 'qiniu.com/image/2018/03/11/avatar.jpg'
+      address:
+        $ref: '#/definitions/Address'
+      distance:
+        type: string
+        description: 与用户的距离
+        example: 3.1km(>=1000米) 128m(<1000m)
+      liked:
+        type: boolean
+        description: 是否赞过
+        example: false
+      like_count:
+        type: integer
+        description: 点赞次数
+        example: 100
+      followed:
+        type: boolean
+        description: 是否已关注
+        example: false
+      follow_count:
+        type: integer
+        description: 关注人数
+        example: 28
+      videos:
+        type: array
+        items:
+          $ref: '#/definitions/UserVideo'
+        description: 看护人的视频
+
+  ObjectInfo:
+    type: object
+    required:
+      - category
+      - reftag
+      - key
+      - etag
+    properties:
+      key:
+        type: string
+        description: oss key
+        example: user_id_123/avatar/2018/03/138/etag.jpg
+      mime_type:
+        type: string
+        description: 文件类型 mimeType
+        example: image/jpeg
+      etag:
+        type: string
+        description: 使用 qiniu sdk 计算的 etag
+        example: 7DsdkdFSKkdljfksQWET-TUI
+      size:
+        type: integer
+        description: 文件大小
+        example: 536123
+      persistent_id:
+        type: string
+        description: '七牛持久化操作 ID 用于查询视频转码和截图等异步操作的结果'
+        example: 'z1.5ade998d856db843bc8fe6f2'
+      width:
+        type: integer
+        description: 分辨率 宽
+        example: 1080
+      height:
+        type: integer
+        description: 分辨率 高
+        example: 1920
+      duration:
+        type: integer
+        description: 播放时长(秒)
+        example: 30
+
+  CarerApplyRequestData:
+    type: object
+    required:
+      - video
+      - degree
+      - address
+      - birth_certificate
+    properties:
+      video:
+        type: object
+        properties:
+          intro:
+            $ref: '#/definitions/ObjectInfo'
+          playground:
+            $ref: '#/definitions/ObjectInfo'
+          extra:
+            type: array
+            items:
+              $ref: '#/definitions/ObjectInfo'
+      degree:
+        description: 最高学历
+        type: integer
+        enum:
+          - 0 无
+          - 1 学士
+          - 2 硕士
+          - 3 博士
+        example: 1
+      address:
+        $ref: '#/definitions/Address'
+      child_count:
+        type: integer
+        example: 10
+        description: 接待孩子数
+      child_age_min:
+        type: integer
+        example: 1
+        description: 接待孩子最小年龄
+      child_age_max:
+        type: integer
+        example: 6
+        description: 接待孩子最大年龄
+      identify_result:
+        type: boolean
+        description: 实名认证结果
+        example: true
+      birth_certificate:
+        $ref: '#/definitions/ObjectInfo'
+
+  CarerApplyResponseData:
+    type: object
+    properties:
+      verify_date:
+        description: 预计审核完成日期
+        type: string
+        format: date
+        example: '2018-05-01'
+      qr:
+        description: 微信群二维码 URL
+        type: string
+        format: url
+        example: 'http://qiniu.com//birth_cert.jpg'
+      wx_id:
+        description: 微信号
+        type: string
+        example: 'more_fat_gay'
+
+  UploadTokenResponseData:
+    type: object
+    properties:
+      token:
+        type: string
+        description: 上传token
+        example: 'EWEEKOOgH774kafCEiLp7dMwQmQ7aqmnTFTlJXzf:yIeNbSmjYbeENyi3ZIj'
+      expiration:
+        description: token过期时间(UTC)
+        type: string
+        format: datetime
+        example: '2018-03-26 04:31:24'
+
+  OSSDownloadURLResponseData:
+    type: object
+    properties:
+      url:
+        type: string
+        format: url
+        description: 加密后的 URL
+        example: 'image'
+
+  AuthMobileLoginRequest:
+    type: object
+    required:
+      - mobile
+      - password
+    properties:
+      mobile:
+        type: string
+        format: mobile
+        description: 明文手机号
+      password:
+        type: string
+        maxLength: 4
+        minLength: 4
+        description: 登录时发送的验证码
+      child_info:
+        type: object
+        properties:
+          born:
+            type: integer
+            description: '孩子是否已出生'
+            enum:
+              - 0 未出生
+              - 1 已出生
+            example: 1
+          nickname:
+            type: string
+            description: '孩子昵称'
+            example: powerfulio
+          birth_ts:
+            type: integer
+            description: '孩子出生日期 时间戳 北京时间'
+            example: 1523264525
+          gender:
+            type: integer
+            enum:
+              - 1 女
+              - 2 男
+            example: 1
+          relation:
+            description: 用户和孩子的关系
+            type: integer
+            enum:
+              - 0 未知
+              - 1 妈妈
+              - 2 爸爸
+              - 3 爷爷
+              - 4 奶奶
+              - 5 外公
+              - 6 外婆
+              - 7 其他家人
+            example: 1
+
+  UserVideo:
+    type: object
+    properties:
+      cover_url:
+        description: 视频快照截图 URL
+        type: string
+        format: url
+        example: 'http://p5zmpa3g9.bkt.clouddn.com/cover.jpg'
+      video_url:
+        description: 视频URL
+        type: string
+        format: url
+        example: 'http://p5zmpa3g9.bkt.clouddn.com/video.mp4'
+      size:
+        type: integer
+        description: 视频文件大小(字节)
+        example: 10240002
+      duration:
+        type: integer
+        description: 视频播放时长(秒)
+        example: 30
+      width:
+        type: integer
+        description: 视频分辨率 宽
+        example: 800
+      height:
+        type: integer
+        description: 视频分辨率 高
+        example: 600
+
+  RecommendCarerResponseDataItem:
+    type: object
+    properties:
+      user_id:
+        type: string
+        format: uuid
+        description: 用户 id
+        example: 123456
+      nickname:
+        type: string
+        description: 昵称
+        example: xxx的妈妈
+      avatar_url:
+        type: string
+        format: url
+        description: 头像图片 URL
+        example: 'qiniu.com/image/2018/03/11/avatar.jpg'
+      address:
+        type: string
+        description: 简短地址
+        example:
+      distance:
+        type: string
+        description: 距离
+        example: 1.2km(821m)
+      liked:
+        type: boolean
+        description: 是否赞过
+        example: true
+      like_count:
+        type: integer
+        description: 被点赞次数
+        example: 100
+      followed:
+        type: boolean
+        description: 是否收藏过
+        example: false
+      follow_count:
+        type: integer
+        description: 被收藏次数
+        example: 28
+      videos:
+        type: array
+        items:
+          $ref: '#/definitions/UserVideo'
+        description: 看护人的视频
+
+  UserUploadDoneRequest:
+    type: object
+    required:
+      - cloud
+      - category
+      - key
+      - etag
+    properties:
+      cloud:
+        description: 云服务(qiniu)
+        type: string
+        example: qiniu
+      category:
+        type: string
+        description: 应用层 category
+        example: video
+      key:
+        type: string
+        description: oss key
+        example: user_id_123/avatar/2018/03/138/etag.jpg
+      etag:
+        type: string
+        description: 使用 qiniu sdk 计算的 etag
+        example: 7DsdkdFSKkdljfksQWET-TUI
+      persistentId:
+        description: 七牛上传文件成功后返回的 persistentId
+        type: string
+        example: z1.5ad99a2b856db843bcfff1de
+      mimeType:
+        type: string
+        description: 文件类型 mimeType
+        example: image/jpeg
+      size:
+        type: integer
+        description: 文件大小
+        example: 536123
+      reftag:
+        type: string
+        description: "引用tag 表示该文件的使用方式 如: avatar、intro-video"
+        example: intro-video
+
+  UserUploadDoneResponseData:
+    type: object
+    required:
+      - id
+    properties:
+      id:
+        type: string
+        format: uuid
+        description: 文件 ID
+        example: 123
+
+  ShareActivityTagsResponseItem:
+    type: object
+    required:
+      - id
+      - text
+    properties:
+      id:
+        type: integer
+        description: 标签 ID
+        example: 3
+      text:
+        type: string
+        description: 标签文字
+        example: 唱歌
+
+  ShareActivityPublishRequest:
+    type: object
+    required:
+      - cloud
+      - category
+      - key
+      - etag
+    properties:
+      start_ts:
+        description: 几点开始接待孩子 时间戳
+        type: integer
+        example: 1524644418
+      end_ts:
+        type: integer
+        description: 几点结束 时间戳
+        example: 1524644418
+      price:
+        type: integer
+        description: 价格(摩尔豆)
+        example: 60
+      tags:
+        type: array
+        items:
+          type: integer
+        description: 活动内容标签 ID
+        example: [2, 3, 4]
+      description:
+        type: string
+        description: 补充描述
+        example: 请出入想补充的信息 我想和孩子一起玩玩
+      accompanied:
+        type: boolean
+        description: 是否必须家长陪同
+        example: true
+        default: true
+
+  ShareActivityPublishResponseData:
+    type: object
+    required:
+      - id
+    properties:
+      id:
+        type: string
+        format: uuid
+        description: 本次发布的活动 ID
+        example: 123
+
+  UserFavor:
+    type: object
+    required:
+      - op_type
+      - to_user_id
+      - relation_type
+    properties:
+      op_type:
+        type: integer
+        description: 操作类型
+        enum:
+          - 0 增加
+          - 1 删除
+      to_user_id:
+        type: string
+        format: uuid
+        description: 关系用户user_id
+      relation_type:
+        type: string
+        enum:
+          - like
+          - follow
+        example: like
+        description: favor类型
+
+
+  FavorModifyResponse:
+    type: object
+    required:
+      - status
+    properties:
+      status:
+        $ref: '#/definitions/Status'

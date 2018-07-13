@@ -1,0 +1,4 @@
+jinja2>=2.10
+marshmallow>=3.0.0b
+python-stdnum>=1.8.1
+pyyaml>=3.12
